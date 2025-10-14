@@ -1,0 +1,40 @@
+{
+  "name": "vpn",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vue-tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "tauri": "tauri"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "^2",
+    "@tauri-apps/plugin-clipboard-manager": "^2.0.0",
+    "@tauri-apps/plugin-fs": "^2.4.2",
+    "@tauri-apps/plugin-opener": "^2",
+    "@tauri-apps/plugin-store": "^2.4.0",
+    "naive-ui": "^2.43.1",
+    "qr-scanner": "^1.4.2",
+    "qrcode": "^1.5.3",
+    "vue": "^3.5.13",
+    "vue-qr": "^4.0.9"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2",
+    "@types/qrcode": "^1.5.5",
+    "@unocss/preset-attributify": "^66.5.2",
+    "@unocss/preset-icons": "^66.5.2",
+    "@unocss/preset-typography": "^66.5.2",
+    "@unocss/preset-uno": "^66.5.2",
+    "@unocss/preset-web-fonts": "^66.5.2",
+    "@unocss/preset-wind": "^66.5.2",
+    "@vicons/ionicons5": "^0.13.0",
+    "@vitejs/plugin-vue": "^5.2.1",
+    "typescript": "~5.6.2",
+    "unocss": "^66.5.2",
+    "vite": "^6.0.3",
+    "vue-tsc": "^2.1.10"
+  }
+}

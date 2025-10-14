@@ -313,5 +313,3 @@ MIT License
 ## 贡献
 
 欢迎提交 Issue 和 Pull Request！
-#   l i g h t i n g - v p n  
- 
