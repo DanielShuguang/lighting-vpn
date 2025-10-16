@@ -1,16 +1,34 @@
 mod commands;
+mod core_manager;
 mod network_test;
+mod proxy_manager;
 mod storage;
 mod subscription;
+mod v2ray_config;
 mod vpn_config;
 mod vpn_manager;
-mod proxy_manager;
-mod v2ray_config;
 
 use commands::*;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // 设置 panic hook 以捕获崩溃信息
+    std::panic::set_hook(Box::new(|panic_info| {
+        eprintln!("========== 应用 Panic ==========");
+        eprintln!("{}", panic_info);
+        if let Some(location) = panic_info.location() {
+            eprintln!(
+                "位置: {}:{}:{}",
+                location.file(),
+                location.line(),
+                location.column()
+            );
+        }
+        eprintln!("==============================");
+    }));
+
+    println!("[App] 应用启动");
+
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_fs::init())
@@ -38,7 +56,34 @@ pub fn run() {
             disconnect_vpn_command,
             get_connection_status_command,
             is_connected_command,
+            // V2Ray 核心管理命令
+            check_core_command,
+            download_core_command,
+            remove_core_command,
+            // 代理模式命令
+            set_proxy_mode_command,
+            get_proxy_mode_command,
+            update_pac_command,
+            download_gfwlist_command,
+            test_proxy_command,
+            reset_proxy_command,
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .setup(|_app| {
+            println!("[App] Tauri 设置完成");
+            Ok(())
+        })
+        .build(tauri::generate_context!())
+        .expect("构建 Tauri 应用失败")
+        .run(|_app_handle, event| {
+            match event {
+                tauri::RunEvent::Exit => {
+                    println!("[App] 应用正常退出");
+                }
+                tauri::RunEvent::ExitRequested { api, .. } => {
+                    println!("[App] 收到退出请求");
+                    api.prevent_exit(); // 暂时阻止退出以便查看日志
+                }
+                _ => {}
+            }
+        });
 }

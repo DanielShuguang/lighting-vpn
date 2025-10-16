@@ -16,6 +16,7 @@ export interface UseConfigManagementReturn {
   loadConfigs: () => Promise<void>
   refreshConfigs: () => void
   deleteConfig: (id: string) => Promise<void>
+  batchDeleteConfigs: (ids: string[]) => Promise<void>
   updateConfig: (updatedConfig: VpnConfig) => void
   addConfig: (newConfig: VpnConfig) => void
 }
@@ -80,6 +81,20 @@ export function useConfigManagement(
   }
 
   /**
+   * 批量删除配置
+   */
+  const batchDeleteConfigs = async (ids: string[]): Promise<void> => {
+    try {
+      const currentConfigs = configs.value.filter(c => !ids.includes(c.id))
+      await invoke('save_configs_command', { configs: { configs: currentConfigs } })
+      configs.value = currentConfigs
+    } catch (error) {
+      message.error(`批量删除配置失败: ${error}`)
+      throw error
+    }
+  }
+
+  /**
    * 添加配置
    */
   const addConfig = (newConfig: VpnConfig): void => {
@@ -92,6 +107,7 @@ export function useConfigManagement(
     loadConfigs,
     refreshConfigs,
     deleteConfig,
+    batchDeleteConfigs,
     updateConfig,
     addConfig
   }

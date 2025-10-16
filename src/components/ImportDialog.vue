@@ -4,11 +4,12 @@
     @update:show="$emit('update:show', $event)"
     preset="dialog"
     title="导入配置"
+    :style="{ width: '90vw', maxWidth: '600px' }"
     :mask-closable="false">
     <div class="space-y-4">
       <!-- 导入方式选择 -->
       <n-radio-group v-model:value="importType" name="importType">
-        <n-space>
+        <n-space vertical size="small" class="sm:flex-row sm:space-y-0">
           <n-radio value="url">URL 导入</n-radio>
           <n-radio value="qr">二维码扫描</n-radio>
           <n-radio value="clipboard">剪贴板导入</n-radio>

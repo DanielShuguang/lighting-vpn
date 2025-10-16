@@ -3,14 +3,16 @@
  */
 import { h, type Ref } from 'vue'
 import type { DataTableColumns } from 'naive-ui'
-import { NButton, NIcon, NTag, NPopconfirm } from 'naive-ui'
+import { NButton, NIcon, NTag, NDropdown } from 'naive-ui'
+import type { DropdownOption } from 'naive-ui'
 import {
   Play as PlayIcon,
   Pause as PauseIcon,
   Create as EditIcon,
   Trash as DeleteIcon,
   Share as ShareIcon,
-  Checkmark as CheckmarkIcon
+  Checkmark as CheckmarkIcon,
+  EllipsisHorizontal as MoreIcon
 } from '@vicons/ionicons5'
 import type {
   VpnConfig,
@@ -51,6 +53,7 @@ export interface TableActions {
   testSingleConfig: (config: VpnConfig) => void
   exportConfig: (config: VpnConfig) => void
   deleteConfig: (id: string) => void
+  isConfigTesting: (configId: string) => boolean
 }
 
 /**
@@ -60,19 +63,32 @@ export function createTableColumns(
   testResults: Ref<Map<string, LatencyTestResult>>,
   connectionStatus: Ref<ConnectionStatus>,
   currentConfig: Ref<VpnConfig | null>,
-  actions: TableActions
+  actions: TableActions,
+  enableSelection: boolean = false
 ): DataTableColumns<VpnConfig> {
-  return [
+  const columns: DataTableColumns<VpnConfig> = []
+
+  // 添加复选框列
+  if (enableSelection) {
+    columns.push({
+      type: 'selection'
+    })
+  }
+
+  columns.push(
     {
       title: '名称',
       key: 'name',
-      width: 200,
-      ellipsis: true
+      minWidth: 150,
+      maxWidth: 300,
+      ellipsis: {
+        tooltip: true
+      }
     },
     {
       title: '协议',
       key: 'protocol',
-      width: 100,
+      minWidth: 80,
       render: (row: VpnConfig) => {
         const protocol = protocolTagMap[row.protocol] || { type: 'default', text: row.protocol }
         return h(NTag, { type: protocol.type }, { default: () => protocol.text })
@@ -81,18 +97,18 @@ export function createTableColumns(
     {
       title: '服务器',
       key: 'server',
-      width: 150,
+      minWidth: 120,
       ellipsis: true
     },
     {
       title: '端口',
       key: 'port',
-      width: 80
+      minWidth: 60
     },
     {
       title: '延迟',
       key: 'latency',
-      width: 100,
+      minWidth: 80,
       render: (row: VpnConfig) => {
         const result = testResults.value.get(row.id)
         if (!result) {
@@ -112,7 +128,7 @@ export function createTableColumns(
     {
       title: '状态',
       key: 'status',
-      width: 100,
+      minWidth: 80,
       render: (row: VpnConfig) => {
         const isCurrent = currentConfig.value?.id === row.id
         if (isCurrent) {
@@ -125,7 +141,8 @@ export function createTableColumns(
     {
       title: '操作',
       key: 'actions',
-      width: 200,
+      width: 180,
+      fixed: 'right' as const,
       render: (row: VpnConfig) => {
         const isCurrent = currentConfig.value?.id === row.id
         const isConnected = isCurrent && connectionStatus.value === 'connected'
@@ -180,80 +197,87 @@ export function createTableColumns(
           )
         }
 
-        // 编辑按钮
-        buttons.push(
-          h(
-            NButton,
-            {
-              size: 'small',
-              onClick: () => actions.editConfig(row)
-            },
-            {
-              icon: () => h(NIcon, null, { default: () => h(EditIcon) }),
-              default: () => '编辑'
-            }
-          )
-        )
+        // 下拉菜单：其他操作
+        const isTesting = actions.isConfigTesting(row.id)
 
-        // 测试按钮
-        buttons.push(
-          h(
-            NButton,
-            {
-              size: 'small',
-              type: 'info',
-              onClick: () => actions.testSingleConfig(row)
-            },
-            {
-              icon: () => h(NIcon, null, { default: () => h(CheckmarkIcon) }),
-              default: () => '测试'
-            }
-          )
-        )
+        const handleSelect = (key: string) => {
+          switch (key) {
+            case 'edit':
+              actions.editConfig(row)
+              break
+            case 'test':
+              if (!isTesting) {
+                actions.testSingleConfig(row)
+              }
+              break
+            case 'export':
+              actions.exportConfig(row)
+              break
+            case 'delete':
+              if (confirm('确定要删除这个配置吗？')) {
+                actions.deleteConfig(row.id)
+              }
+              break
+          }
+        }
 
-        // 导出按钮
-        buttons.push(
-          h(
-            NButton,
-            {
-              size: 'small',
-              onClick: () => actions.exportConfig(row)
-            },
-            {
-              icon: () => h(NIcon, null, { default: () => h(ShareIcon) }),
-              default: () => '导出'
-            }
-          )
-        )
+        const dropdownOptions: DropdownOption[] = [
+          {
+            label: '编辑配置',
+            key: 'edit',
+            icon: () => h(NIcon, null, { default: () => h(EditIcon) })
+          },
+          {
+            label: isTesting ? '测速中...' : '测速',
+            key: 'test',
+            disabled: isTesting,
+            icon: () => h(NIcon, null, { default: () => h(CheckmarkIcon) })
+          },
+          {
+            label: '导出配置',
+            key: 'export',
+            icon: () => h(NIcon, null, { default: () => h(ShareIcon) })
+          },
+          {
+            type: 'divider',
+            key: 'divider'
+          },
+          {
+            label: '删除配置',
+            key: 'delete',
+            icon: () => h(NIcon, { color: '#d03050' }, { default: () => h(DeleteIcon) })
+          }
+        ]
 
-        // 删除按钮
         buttons.push(
           h(
-            NPopconfirm,
+            NDropdown,
             {
-              onPositiveClick: () => actions.deleteConfig(row.id)
+              trigger: 'click',
+              options: dropdownOptions,
+              placement: 'bottom-end',
+              onSelect: handleSelect
             },
             {
-              trigger: () =>
+              default: () =>
                 h(
                   NButton,
                   {
                     size: 'small',
-                    type: 'error',
                     quaternary: true
                   },
                   {
-                    icon: () => h(NIcon, null, { default: () => h(DeleteIcon) }),
-                    default: () => '删除'
+                    icon: () => h(NIcon, null, { default: () => h(MoreIcon) })
                   }
-                ),
-              default: () => '确定要删除这个配置吗？'
+                )
             }
           )
         )
 
-        return h('div', { class: 'flex space-x-2' }, buttons)
+        return h('div', { class: 'flex items-center gap-2' }, buttons)
       }
     }
-  ]
+  )
+
+  return columns
 }

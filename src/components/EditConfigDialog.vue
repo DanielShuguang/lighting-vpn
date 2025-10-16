@@ -4,14 +4,15 @@
     @update:show="$emit('update:show', $event)"
     preset="dialog"
     title="编辑配置"
+    :style="{ width: '90vw', maxWidth: '500px' }"
     :mask-closable="false">
     <div v-if="config" class="space-y-4">
       <n-form
         ref="formRef"
         :model="formData"
         :rules="rules"
-        label-placement="left"
-        label-width="80">
+        label-placement="top"
+        :label-width="80">
         <n-form-item label="名称" path="name">
           <n-input v-model:value="formData.name" placeholder="请输入配置名称" />
         </n-form-item>
@@ -31,12 +32,17 @@
           <n-input-number v-model:value="formData.port" :min="1" :max="65535" class="w-full" />
         </n-form-item>
 
-        <n-form-item v-if="needsPassword" label="密码" path="password">
+        <n-form-item v-if="needsPassword" :label="passwordLabel" path="password">
           <n-input
             v-model:value="formData.password"
             type="password"
-            placeholder="请输入密码"
+            :placeholder="passwordPlaceholder"
             show-password-on="click" />
+          <template #feedback v-if="formData.protocol === 'V2Ray' || formData.protocol === 'Vmess'">
+            <span class="text-xs text-gray-500">
+              需要 UUID 格式 (例如: 12345678-1234-1234-1234-123456789012)
+            </span>
+          </template>
         </n-form-item>
 
         <n-form-item v-if="needsMethod" label="加密方法" path="method">
@@ -44,6 +50,10 @@
             v-model:value="formData.method"
             :options="methodOptions"
             placeholder="请选择加密方法" />
+        </n-form-item>
+
+        <n-form-item label="分组" path="group">
+          <n-input v-model:value="formData.group" placeholder="选填，用于分组管理" />
         </n-form-item>
 
         <n-form-item label="备注" path="remarks">
@@ -104,6 +114,7 @@ const formData = ref({
   port: 0,
   password: '',
   method: '',
+  group: '',
   remarks: ''
 })
 
@@ -130,7 +141,25 @@ const methodOptions = [
 
 // 是否需要密码
 const needsPassword = computed(() => {
-  return ['Shadowsocks', 'ShadowsocksR', 'Vmess', 'Trojan'].includes(formData.value.protocol)
+  return ['Shadowsocks', 'ShadowsocksR', 'Vmess', 'Trojan', 'V2Ray'].includes(
+    formData.value.protocol
+  )
+})
+
+// 密码字段标签
+const passwordLabel = computed(() => {
+  if (formData.value.protocol === 'V2Ray' || formData.value.protocol === 'Vmess') {
+    return '密码/UUID'
+  }
+  return '密码'
+})
+
+// 密码字段占位符
+const passwordPlaceholder = computed(() => {
+  if (formData.value.protocol === 'V2Ray' || formData.value.protocol === 'Vmess') {
+    return '请输入 UUID'
+  }
+  return '请输入密码'
 })
 
 // 是否需要加密方法
@@ -147,10 +176,14 @@ const rules: FormRules = {
   password: [
     {
       required: true,
-      message: '请输入密码',
+      message: '请输入密码或 UUID',
       trigger: 'blur',
       validator: (_rule, value) => {
         if (needsPassword.value && !value) {
+          const proto = formData.value.protocol
+          if (proto === 'V2Ray' || proto === 'Vmess') {
+            return new Error('请输入 UUID')
+          }
           return new Error('请输入密码')
         }
         return true
@@ -184,6 +217,7 @@ watch(
         port: config.port,
         password: config.password || '',
         method: config.method || '',
+        group: config.group || '',
         remarks: config.remarks || ''
       }
     }
@@ -212,6 +246,7 @@ const saveConfig = async () => {
       port: formData.value.port,
       password: formData.value.password || undefined,
       method: formData.value.method || undefined,
+      group: formData.value.group || undefined,
       remarks: formData.value.remarks || undefined,
       updated_at: new Date().toISOString()
     }

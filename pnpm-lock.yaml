@@ -16,6 +16,7 @@ specifiers:
   '@unocss/preset-wind': ^66.5.2
   '@vicons/ionicons5': ^0.13.0
   '@vitejs/plugin-vue': ^5.2.1
+  '@vueuse/core': 14.0.0-alpha.0
   naive-ui: ^2.43.1
   qr-scanner: ^1.4.2
   qrcode: ^1.5.3
@@ -32,6 +33,7 @@ dependencies:
   '@tauri-apps/plugin-fs': 2.4.2
   '@tauri-apps/plugin-opener': 2.5.0
   '@tauri-apps/plugin-store': 2.4.0
+  '@vueuse/core': 14.0.0-alpha.0_vue@3.5.22
   naive-ui: 2.43.1_vue@3.5.22
   qr-scanner: 1.4.2
   qrcode: 1.5.4
@@ -828,6 +830,10 @@ packages:
       '@types/node': 24.7.1
     dev: true
 
+  /@types/web-bluetooth/0.0.21:
+    resolution: {integrity: sha512-oIQLCGWtcFZy2JW77j9k8nHzAOpqMHLQejDA48XXMWH6tjCQHz5RCFz1bzsmROyL6PUm+LLnUiI4BCn221inxA==}
+    dev: false
+
   /@unocss/astro/66.5.2_vite@6.3.6:
     resolution: {integrity: sha512-JUiJL4wkDTCFgReQ+c1Nqb47EfryJvGiSp9MxXclCUbp5hegqq7yMg3BMpJ4QzHmf5EeDFO38eRBKV57hd0Iew==}
     peerDependencies:
@@ -1159,6 +1165,29 @@ packages:
 
   /@vue/shared/3.5.22:
     resolution: {integrity: sha512-F4yc6palwq3TT0u+FYf0Ns4Tfl9GRFURDN2gWG7L1ecIaS/4fCIuFOjMTnCyjsu/OK6vaDKLCrGAa+KvvH+h4w==}
+
+  /@vueuse/core/14.0.0-alpha.0_vue@3.5.22:
+    resolution: {integrity: sha512-y2964MhoYalRdiBX+ilOOwh3EHsZyDhOb/hwZTkLlytcVrtX+Gbz+ffsAomaazJzZ7m/u+KI/5hLEdSHhjelgA==}
+    peerDependencies:
+      vue: ^3.5.0
+    dependencies:
+      '@types/web-bluetooth': 0.0.21
+      '@vueuse/metadata': 14.0.0-alpha.0
+      '@vueuse/shared': 14.0.0-alpha.0_vue@3.5.22
+      vue: 3.5.22_typescript@5.6.3
+    dev: false
+
+  /@vueuse/metadata/14.0.0-alpha.0:
+    resolution: {integrity: sha512-FyQ7kAVMnccJwp0Wt2JuEjCNGl4lpOXKQEqzTbiqhKydQBK0urGaa+v12u8qJxf4XaaPNufLdoCQYQh8ya63JQ==}
+    dev: false
+
+  /@vueuse/shared/14.0.0-alpha.0_vue@3.5.22:
+    resolution: {integrity: sha512-J8cmTJkB0hAwPBXRR5U3N9FJkhPBrhyYiQm21kZ3j/o8W69Pg6JlPSxLOJtkg+AwC/r5x7Gpq2Vglv84vHotwA==}
+    peerDependencies:
+      vue: ^3.5.0
+    dependencies:
+      vue: 3.5.22_typescript@5.6.3
+    dev: false
 
   /acorn/8.15.0:
     resolution: {integrity: sha512-NZyJarBfL7nWwIq+FDL6Zp/yHEhePMNnnJ0y3qfieCrmNvYct8uvtiV41UvlSe6apAfk0fY1FbWx+NwfmpvtTg==}

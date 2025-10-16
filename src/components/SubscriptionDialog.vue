@@ -3,53 +3,72 @@
     v-model:show="showModal"
     preset="card"
     title="订阅管理"
-    style="width: 800px"
+    :style="{ width: '90vw', maxWidth: '800px' }"
     :mask-closable="false">
     <div class="space-y-4">
-      <!-- 添加订阅表单 -->
-      <div class="bg-gray-50 p-4 rounded-lg">
-        <h3 class="text-sm font-semibold mb-3 text-gray-700">添加新订阅</h3>
-        <n-form ref="formRef" :model="newSubscription" :rules="rules">
-          <n-grid :cols="2" :x-gap="12" :y-gap="8">
-            <n-form-item-gi path="name" label="订阅名称">
-              <n-input v-model:value="newSubscription.name" placeholder="例如：机场A" />
-            </n-form-item-gi>
-            <n-form-item-gi path="update_interval" label="更新间隔(小时)">
-              <n-input-number
-                v-model:value="newSubscription.update_interval"
-                :min="1"
-                :max="720"
-                placeholder="24" />
-            </n-form-item-gi>
-            <n-form-item-gi :span="2" path="url" label="订阅地址">
-              <n-input
-                v-model:value="newSubscription.url"
-                type="textarea"
-                placeholder="https://example.com/subscription"
-                :autosize="{ minRows: 2, maxRows: 4 }" />
-            </n-form-item-gi>
-            <n-form-item-gi :span="2" label="选项">
-              <n-checkbox v-model:checked="newSubscription.use_proxy">使用代理更新</n-checkbox>
-            </n-form-item-gi>
-          </n-grid>
-          <div class="flex justify-end">
-            <n-button type="primary" @click="handleAddSubscription" :loading="adding">
-              添加订阅
-            </n-button>
+      <!-- 添加订阅表单（折叠面板） -->
+      <n-collapse v-model:expanded-names="expandedKeys" accordion>
+        <n-collapse-item name="add-subscription">
+          <template #header>
+            <div class="flex items-center gap-2">
+              <n-icon :component="AddIcon" />
+              <span class="font-semibold">添加新订阅</span>
+            </div>
+          </template>
+          <template #header-extra>
+            <n-icon :component="ChevronDownIcon" class="text-gray-400" />
+          </template>
+
+          <div class="pt-2">
+            <n-form ref="formRef" :model="newSubscription" :rules="rules">
+              <n-grid :cols="1" :sm-cols="2" :x-gap="12" :y-gap="8">
+                <n-form-item-gi path="name" label="订阅名称">
+                  <n-input v-model:value="newSubscription.name" placeholder="例如：机场A" />
+                </n-form-item-gi>
+                <n-form-item-gi path="update_interval" label="更新间隔(小时)">
+                  <n-input-number
+                    v-model:value="newSubscription.update_interval"
+                    :min="1"
+                    :max="720"
+                    placeholder="24" />
+                </n-form-item-gi>
+                <n-form-item-gi :span="1" :sm-span="2" path="url" label="订阅地址">
+                  <n-input
+                    v-model:value="newSubscription.url"
+                    type="textarea"
+                    placeholder="https://example.com/subscription"
+                    :autosize="{ minRows: 2, maxRows: 4 }" />
+                </n-form-item-gi>
+                <n-form-item-gi :span="1" :sm-span="2" label="选项">
+                  <n-checkbox v-model:checked="newSubscription.use_proxy">使用代理更新</n-checkbox>
+                </n-form-item-gi>
+              </n-grid>
+              <div class="flex justify-end mt-4">
+                <n-button type="primary" @click="handleAddSubscription" :loading="adding">
+                  <template #icon>
+                    <n-icon :component="AddIcon" />
+                  </template>
+                  添加订阅
+                </n-button>
+              </div>
+            </n-form>
           </div>
-        </n-form>
-      </div>
+        </n-collapse-item>
+      </n-collapse>
 
       <!-- 订阅列表 -->
       <div>
         <h3 class="text-sm font-semibold mb-3 text-gray-700">订阅列表</h3>
-        <n-data-table
-          :columns="columns"
-          :data="subscriptions"
-          :loading="loading"
-          :pagination="false"
-          :bordered="false"
-          size="small" />
+        <div class="overflow-x-auto">
+          <n-data-table
+            :columns="columns"
+            :data="subscriptions"
+            :loading="loading"
+            :pagination="false"
+            :bordered="false"
+            :scroll-x="900"
+            size="small" />
+        </div>
       </div>
     </div>
 
@@ -74,12 +93,21 @@ import {
   NButton,
   NDataTable,
   NTag,
-  NPopconfirm,
   NIcon,
+  NCollapse,
+  NCollapseItem,
+  NDropdown,
   useMessage,
   FormInst
 } from 'naive-ui'
-import { Refresh as RefreshIcon, Trash as DeleteIcon } from '@vicons/ionicons5'
+import type { DropdownOption } from 'naive-ui'
+import {
+  Refresh as RefreshIcon,
+  Trash as DeleteIcon,
+  Add as AddIcon,
+  ChevronDown as ChevronDownIcon,
+  EllipsisHorizontal as MoreIcon
+} from '@vicons/ionicons5'
 import { invoke } from '@tauri-apps/api/core'
 
 interface Subscription {
@@ -108,6 +136,7 @@ const formRef = ref<FormInst | null>(null)
 const loading = ref(false)
 const adding = ref(false)
 const subscriptions = ref<Subscription[]>([])
+const expandedKeys = ref<string[]>([])
 
 const showModal = computed({
   get: () => props.show,
@@ -138,13 +167,13 @@ const columns = [
   {
     title: '名称',
     key: 'name',
-    width: 120,
+    minWidth: 100,
     ellipsis: true
   },
   {
     title: '状态',
     key: 'enabled',
-    width: 70,
+    minWidth: 70,
     render: (row: Subscription) => {
       return h(
         NTag,
@@ -156,12 +185,12 @@ const columns = [
   {
     title: '节点数',
     key: 'config_count',
-    width: 80
+    minWidth: 80
   },
   {
     title: '最后更新',
     key: 'last_update',
-    width: 150,
+    minWidth: 140,
     render: (row: Subscription) => {
       if (!row.last_update) return '从未更新'
       return new Date(row.last_update).toLocaleString('zh-CN')
@@ -170,13 +199,13 @@ const columns = [
   {
     title: '更新间隔',
     key: 'update_interval',
-    width: 100,
+    minWidth: 90,
     render: (row: Subscription) => `${row.update_interval}小时`
   },
   {
     title: '代理',
     key: 'use_proxy',
-    width: 70,
+    minWidth: 60,
     render: (row: Subscription) => {
       return h(
         NTag,
@@ -188,9 +217,40 @@ const columns = [
   {
     title: '操作',
     key: 'actions',
-    width: 120,
+    width: 140,
+    fixed: 'right' as const,
     render: (row: Subscription) => {
-      return h('div', { class: 'flex space-x-2' }, [
+      const handleSelect = (key: string) => {
+        switch (key) {
+          case 'refresh':
+            handleRefreshSubscription(row.id)
+            break
+          case 'delete':
+            if (confirm('确定要删除这个订阅吗？')) {
+              handleDeleteSubscription(row.id)
+            }
+            break
+        }
+      }
+
+      const dropdownOptions: DropdownOption[] = [
+        {
+          label: '更新订阅',
+          key: 'refresh',
+          icon: () => h(NIcon, null, { default: () => h(RefreshIcon) })
+        },
+        {
+          type: 'divider',
+          key: 'divider'
+        },
+        {
+          label: '删除订阅',
+          key: 'delete',
+          icon: () => h(NIcon, { color: '#d03050' }, { default: () => h(DeleteIcon) })
+        }
+      ]
+
+      return h('div', { class: 'flex items-center gap-2' }, [
         h(
           NButton,
           {
@@ -199,30 +259,29 @@ const columns = [
             onClick: () => handleRefreshSubscription(row.id)
           },
           {
-            icon: () => h(NIcon, null, { default: () => h(RefreshIcon) }),
-            default: () => '更新'
+            icon: () => h(NIcon, null, { default: () => h(RefreshIcon) })
           }
         ),
         h(
-          NPopconfirm,
+          NDropdown,
           {
-            onPositiveClick: () => handleDeleteSubscription(row.id)
+            trigger: 'click',
+            options: dropdownOptions,
+            placement: 'bottom-end',
+            onSelect: handleSelect
           },
           {
-            trigger: () =>
+            default: () =>
               h(
                 NButton,
                 {
                   size: 'small',
-                  type: 'error',
                   quaternary: true
                 },
                 {
-                  icon: () => h(NIcon, null, { default: () => h(DeleteIcon) }),
-                  default: () => '删除'
+                  icon: () => h(NIcon, null, { default: () => h(MoreIcon) })
                 }
-              ),
-            default: () => '确定要删除这个订阅吗？'
+              )
           }
         )
       ])
@@ -249,20 +308,44 @@ const handleAddSubscription = async () => {
     await formRef.value?.validate()
     adding.value = true
 
-    await invoke('add_subscription_command', {
+    const result = await invoke('add_subscription_command', {
       name: newSubscription.value.name,
       url: newSubscription.value.url,
       useProxy: newSubscription.value.use_proxy,
       updateInterval: newSubscription.value.update_interval
     })
 
-    message.success('订阅添加成功')
+    const subscriptionId = (result as any).id
+
+    message.success('订阅添加成功，正在获取节点...')
+
+    // 立即更新订阅以获取配置
+    try {
+      const newConfigs = await invoke('refresh_subscription_command', {
+        id: subscriptionId,
+        proxyUrl: null
+      })
+
+      const result = await mergeConfigsToList(newConfigs as any[], subscriptionId)
+
+      if (result.total > 0) {
+        message.success(`订阅添加完成！获取到 ${result.total} 个节点`)
+        emit('subscriptionUpdated')
+      } else {
+        message.warning('订阅添加成功，但未获取到任何节点')
+      }
+    } catch (updateError) {
+      message.warning(`订阅已添加，但获取节点失败: ${updateError}`)
+    }
+
     newSubscription.value = {
       name: '',
       url: '',
       use_proxy: false,
       update_interval: 24
     }
+    // 添加成功后收起折叠面板
+    expandedKeys.value = []
     await loadSubscriptions()
   } catch (error: any) {
     if (error.errorFields) {
@@ -279,13 +362,24 @@ const handleAddSubscription = async () => {
 const handleRefreshSubscription = async (id: string) => {
   try {
     message.info('正在更新订阅...')
-    const configs = await invoke('refresh_subscription_command', {
+    const newConfigs = await invoke('refresh_subscription_command', {
       id,
       proxyUrl: null
     })
 
-    message.success(`订阅更新成功，获取到 ${(configs as any).length} 个节点`)
-    emit('subscriptionUpdated')
+    const result = await mergeConfigsToList(newConfigs as any[], id)
+
+    if (result.total === 0) {
+      message.warning('订阅更新成功，但未获取到任何节点')
+    } else {
+      const msgs = [`获取 ${result.total} 个节点`]
+      if (result.removed > 0) {
+        msgs.push(`替换 ${result.removed} 个旧节点`)
+      }
+      message.success(`订阅更新成功！${msgs.join('，')}`)
+      emit('subscriptionUpdated')
+    }
+
     await loadSubscriptions()
   } catch (error) {
     message.error(`更新订阅失败: ${error}`)
@@ -300,6 +394,72 @@ const handleDeleteSubscription = async (id: string) => {
     await loadSubscriptions()
   } catch (error) {
     message.error(`删除订阅失败: ${error}`)
+  }
+}
+
+// 合并配置到现有列表（同订阅覆盖，不同订阅去重）
+const mergeConfigsToList = async (newConfigs: any[], subscriptionId?: string) => {
+  if (newConfigs.length === 0) {
+    return { total: 0, added: 0, removed: 0 }
+  }
+
+  // 加载现有配置
+  const existingResult = await invoke('load_configs_command')
+  let existingConfigs = (existingResult as any).configs || []
+
+  let addedCount = 0
+  let removedCount = 0
+
+  if (subscriptionId) {
+    // 如果是订阅更新，先删除该订阅的所有旧配置
+    const oldSubscriptionConfigs = existingConfigs.filter(
+      (config: any) => config.subscription_id === subscriptionId
+    )
+    removedCount = oldSubscriptionConfigs.length
+
+    existingConfigs = existingConfigs.filter(
+      (config: any) => config.subscription_id !== subscriptionId
+    )
+
+    // 直接添加新配置
+    const mergedConfigs = [...existingConfigs, ...newConfigs]
+    addedCount = newConfigs.length
+
+    await invoke('save_configs_command', {
+      configs: { configs: mergedConfigs }
+    })
+
+    return {
+      total: newConfigs.length,
+      added: addedCount,
+      removed: removedCount
+    }
+  } else {
+    // 如果不是订阅更新（手动导入），使用去重逻辑
+    const configMap = new Map()
+    existingConfigs.forEach((config: any) => {
+      const key = `${config.name}-${config.server}-${config.port}`
+      configMap.set(key, config)
+    })
+
+    newConfigs.forEach((config: any) => {
+      const key = `${config.name}-${config.server}-${config.port}`
+      if (!configMap.has(key)) {
+        configMap.set(key, config)
+        addedCount++
+      }
+    })
+
+    const mergedConfigs = Array.from(configMap.values())
+    await invoke('save_configs_command', {
+      configs: { configs: mergedConfigs }
+    })
+
+    return {
+      total: newConfigs.length,
+      added: addedCount,
+      removed: 0
+    }
   }
 }
 

@@ -1,0 +1,24 @@
+# Tauri 文件监视忽略列表
+# 这些文件/目录的变化不会触发应用重新构建
+
+# 运行时生成的配置文件
+configs/
+*.json
+
+# V2Ray 核心文件
+v2ray-core/
+
+# PAC 规则文件
+gfwlist.txt
+pac_rules.txt
+
+# 日志文件
+*.log
+
+# 数据文件
+*.db
+*.sqlite
+
+# 临时文件
+*.tmp
+

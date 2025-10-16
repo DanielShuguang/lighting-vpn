@@ -14,6 +14,8 @@ pub struct VpnConfig {
     pub password: Option<String>,
     pub method: Option<String>,
     pub remarks: Option<String>,
+    #[serde(default)]
+    pub subscription_id: Option<String>,
     pub created_at: chrono::DateTime<chrono::Utc>,
     pub updated_at: chrono::DateTime<chrono::Utc>,
 }
@@ -61,15 +63,25 @@ fn parse_shadowsocks_url(url: &str) -> Result<VpnConfig> {
     let method = parts[0].to_string();
     let password = parts[1].to_string();
 
+    // 解码 fragment 中的名称（支持 URL 编码的中文）
+    let name = if let Some(fragment) = parsed_url.fragment() {
+        urlencoding::decode(fragment)
+            .unwrap_or_else(|_| fragment.into())
+            .to_string()
+    } else {
+        "Shadowsocks".to_string()
+    };
+
     Ok(VpnConfig {
         id: uuid::Uuid::new_v4().to_string(),
-        name: parsed_url.fragment().unwrap_or("Shadowsocks").to_string(),
+        name,
         protocol: VpnProtocol::Shadowsocks,
         server: host.to_string(),
         port,
         password: Some(password),
         method: Some(method),
         remarks: None,
+        subscription_id: None,
         created_at: chrono::Utc::now(),
         updated_at: chrono::Utc::now(),
     })
@@ -82,11 +94,12 @@ fn parse_shadowsocksr_url(url: &str) -> Result<VpnConfig> {
         .strip_prefix("ssr://")
         .ok_or_else(|| anyhow::anyhow!("Invalid SSR URL"))?;
     let decoded = general_purpose::STANDARD.decode(url)?;
-    let config_str = String::from_utf8(decoded)?;
+    let config_str = String::from_utf8(decoded)
+        .map_err(|e| anyhow::anyhow!("Invalid UTF-8 in SSR config: {}", e))?;
 
     // 解析SSR配置
     let parts: Vec<&str> = config_str.split('/').collect();
-    if parts.len() < 2 {
+    if parts.is_empty() {
         return Err(anyhow::anyhow!("Invalid SSR format"));
     }
 
@@ -107,14 +120,24 @@ fn parse_shadowsocksr_url(url: &str) -> Result<VpnConfig> {
     let obfs = main_parts[4];
     let password_b64 = main_parts[5];
 
-    // 解码密码
+    // 解码密码（支持 UTF-8）
     let password = general_purpose::STANDARD.decode(password_b64)?;
-    let password_str = String::from_utf8(password)?;
+    let password_str = String::from_utf8(password)
+        .map_err(|e| anyhow::anyhow!("Invalid UTF-8 in password: {}", e))?;
 
-    // 解码备注
+    // 解码备注（支持 UTF-8 中文）
     let remarks = if !remarks_part.is_empty() {
-        let decoded_remarks = general_purpose::STANDARD.decode(remarks_part)?;
-        Some(String::from_utf8(decoded_remarks)?)
+        match general_purpose::STANDARD.decode(remarks_part) {
+            Ok(decoded_bytes) => match String::from_utf8(decoded_bytes) {
+                Ok(s) => Some(s),
+                Err(e) => {
+                    // 如果 UTF-8 解码失败，尝试使用原始字符串
+                    eprintln!("Warning: Failed to decode remarks as UTF-8: {}", e);
+                    Some(remarks_part.to_string())
+                }
+            },
+            Err(_) => Some(remarks_part.to_string()),
+        }
     } else {
         None
     };
@@ -130,6 +153,7 @@ fn parse_shadowsocksr_url(url: &str) -> Result<VpnConfig> {
         password: Some(password_str),
         method: Some(format!("{}:{}:{}", method, protocol, obfs)),
         remarks,
+        subscription_id: None,
         created_at: chrono::Utc::now(),
         updated_at: chrono::Utc::now(),
     })
@@ -143,21 +167,39 @@ fn parse_v2ray_url(url: &str) -> Result<VpnConfig> {
         .ok_or_else(|| anyhow::anyhow!("Invalid host"))?;
     let port = parsed_url.port().unwrap_or(443);
 
-    // 解析查询参数
+    // 获取 UUID（VLess 的 UUID 在 username 部分）
+    let uuid = if !parsed_url.username().is_empty() {
+        Some(parsed_url.username().to_string())
+    } else {
+        None
+    };
+
+    // 解析查询参数（URL 参数已经自动解码）
     let query_pairs: HashMap<String, String> = parsed_url.query_pairs().into_owned().collect();
 
     let remarks = query_pairs.get("remarks").cloned();
-    let password = query_pairs.get("password").cloned();
+    // 优先使用 username 中的 UUID，其次使用查询参数中的 password
+    let password = uuid.or_else(|| query_pairs.get("password").cloned());
+
+    // 如果 fragment 包含名称，优先使用 fragment
+    let name = if let Some(fragment) = parsed_url.fragment() {
+        urlencoding::decode(fragment)
+            .unwrap_or_else(|_| fragment.into())
+            .to_string()
+    } else {
+        remarks.clone().unwrap_or_else(|| "V2Ray".to_string())
+    };
 
     Ok(VpnConfig {
         id: uuid::Uuid::new_v4().to_string(),
-        name: remarks.clone().unwrap_or_else(|| "V2Ray".to_string()),
+        name,
         protocol: VpnProtocol::V2Ray,
         server: host.to_string(),
         port,
         password,
         method: None,
         remarks,
+        subscription_id: None,
         created_at: chrono::Utc::now(),
         updated_at: chrono::Utc::now(),
     })
@@ -170,19 +212,25 @@ fn parse_vmess_url(url: &str) -> Result<VpnConfig> {
         .strip_prefix("vmess://")
         .ok_or_else(|| anyhow::anyhow!("Invalid VMess URL"))?;
     let decoded = general_purpose::STANDARD.decode(url)?;
-    let config_str = String::from_utf8(decoded)?;
+    let config_str = String::from_utf8(decoded)
+        .map_err(|e| anyhow::anyhow!("Invalid UTF-8 in VMess config: {}", e))?;
 
-    let config: serde_json::Value = serde_json::from_str(&config_str)?;
+    let config: serde_json::Value = serde_json::from_str(&config_str)
+        .map_err(|e| anyhow::anyhow!("Invalid JSON in VMess config: {}", e))?;
+
+    // 获取节点名称（ps 字段，已经是 UTF-8 编码的中文）
+    let name = config["ps"].as_str().unwrap_or("VMess").to_string();
 
     Ok(VpnConfig {
         id: uuid::Uuid::new_v4().to_string(),
-        name: config["ps"].as_str().unwrap_or("VMess").to_string(),
+        name,
         protocol: VpnProtocol::Vmess,
         server: config["add"].as_str().unwrap_or("").to_string(),
         port: config["port"].as_u64().unwrap_or(443) as u16,
         password: config["id"].as_str().map(|s| s.to_string()),
         method: None,
         remarks: config["ps"].as_str().map(|s| s.to_string()),
+        subscription_id: None,
         created_at: chrono::Utc::now(),
         updated_at: chrono::Utc::now(),
     })
@@ -197,18 +245,29 @@ fn parse_trojan_url(url: &str) -> Result<VpnConfig> {
     let port = parsed_url.port().unwrap_or(443);
     let password = parsed_url.username().to_string();
 
+    // 解析查询参数（URL 参数已经自动解码）
     let query_pairs: HashMap<String, String> = parsed_url.query_pairs().into_owned().collect();
     let remarks = query_pairs.get("remarks").cloned();
 
+    // 如果 fragment 包含名称，优先使用 fragment
+    let name = if let Some(fragment) = parsed_url.fragment() {
+        urlencoding::decode(fragment)
+            .unwrap_or_else(|_| fragment.into())
+            .to_string()
+    } else {
+        remarks.clone().unwrap_or_else(|| "Trojan".to_string())
+    };
+
     Ok(VpnConfig {
         id: uuid::Uuid::new_v4().to_string(),
-        name: remarks.clone().unwrap_or_else(|| "Trojan".to_string()),
+        name,
         protocol: VpnProtocol::Trojan,
         server: host.to_string(),
         port,
         password: Some(password),
         method: None,
         remarks,
+        subscription_id: None,
         created_at: chrono::Utc::now(),
         updated_at: chrono::Utc::now(),
     })

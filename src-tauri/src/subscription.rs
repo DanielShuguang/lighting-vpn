@@ -59,9 +59,21 @@ pub async fn fetch_subscription_configs(
 fn parse_subscription_content(content: &str) -> Result<Vec<VpnConfig>> {
     let mut configs = Vec::new();
 
-    // 尝试 Base64 解码
+    // 尝试 Base64 解码（支持 UTF-8 中文）
     let decoded_content = if let Ok(decoded) = general_purpose::STANDARD.decode(content.trim()) {
-        String::from_utf8(decoded).unwrap_or_else(|_| content.to_string())
+        // 尝试将 Base64 解码后的字节转换为 UTF-8 字符串
+        match String::from_utf8(decoded.clone()) {
+            Ok(s) => s,
+            Err(e) => {
+                // 如果 UTF-8 解码失败，尝试使用其他编码或使用原始内容
+                eprintln!(
+                    "Warning: Failed to decode subscription content as UTF-8: {}",
+                    e
+                );
+                // 尝试使用 UTF-8 lossy 转换
+                String::from_utf8_lossy(&decoded).to_string()
+            }
+        }
     } else {
         content.to_string()
     };
@@ -74,8 +86,12 @@ fn parse_subscription_content(content: &str) -> Result<Vec<VpnConfig>> {
         }
 
         // 尝试解析为 VPN 配置
-        if let Ok(config) = parse_vpn_url(line) {
-            configs.push(config);
+        match parse_vpn_url(line) {
+            Ok(config) => configs.push(config),
+            Err(e) => {
+                // 记录解析失败的行，但不中断整个解析过程
+                eprintln!("Warning: Failed to parse VPN URL: {} - Error: {}", line, e);
+            }
         }
     }
 
@@ -184,12 +200,17 @@ pub async fn refresh_subscription(id: String, proxy_url: Option<String>) -> Resu
         .find(|s| s.id == id)
         .ok_or_else(|| anyhow::anyhow!("Subscription not found"))?;
 
-    let configs = fetch_subscription_configs(
+    let mut configs = fetch_subscription_configs(
         &subscription.url,
         subscription.use_proxy,
         proxy_url.as_deref(),
     )
     .await?;
+
+    // 为所有配置设置订阅ID
+    for config in &mut configs {
+        config.subscription_id = Some(id.clone());
+    }
 
     subscription.last_update = Some(chrono::Utc::now());
     subscription.config_count = configs.len();

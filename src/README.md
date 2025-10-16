@@ -131,19 +131,53 @@ const { connectionStatus, currentConfig, connectConfig, disconnectConfig, checkC
 **导出内容**：
 
 - `testResults`: 测试结果集合（响应式）
+- `testingConfigs`: 正在测试的配置集合（响应式）
+- `isBatchTesting`: 批量测试状态（响应式）
 - `testSingleConfig()`: 测试单个配置的延迟
 - `handleBatchTest()`: 批量测试所有配置
 - `clearTestResults()`: 清除测试结果
+- `isConfigTesting()`: 检查配置是否正在测试
+
+**功能特性**：
+
+- ✅ 防重复测试机制
+- ✅ 实时状态反馈
+- ✅ 自动错误处理
+- ✅ 并发批量测试
 
 **使用示例**：
 
 ```typescript
 import { useNetworkTest } from '../composables/useNetworkTest'
 
-const { testResults, testSingleConfig, handleBatchTest, clearTestResults } = useNetworkTest({
-  message,
-  configs
-})
+const {
+  testResults,
+  testingConfigs,
+  isBatchTesting,
+  testSingleConfig,
+  handleBatchTest,
+  isConfigTesting
+} = useNetworkTest({ message, configs })
+
+// 测试单个配置
+await testSingleConfig(config)
+
+// 检查是否正在测试
+if (isConfigTesting(config.id)) {
+  console.log('正在测试中...')
+}
+
+// 批量测试
+await handleBatchTest()
+```
+
+**测试参数**：
+
+```typescript
+{
+  count: 3,          // 测试次数（取平均值）
+  timeoutSecs: 5     // 超时时间（秒）
+}
 ```
 
 ## 🔧 最佳实践
