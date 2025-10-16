@@ -13,22 +13,10 @@
 
 <script lang="ts" setup>
 import { computed } from 'vue'
-
-interface VpnConfig {
-  id: string
-  name: string
-  protocol: string
-  server: string
-  port: number
-  password?: string
-  method?: string
-  remarks?: string
-  created_at: string
-  updated_at: string
-}
+import type { VpnConfig, ConnectionStatus } from '../types/vpn'
 
 interface Props {
-  status: 'disconnected' | 'connecting' | 'connected' | 'error'
+  status: ConnectionStatus
   currentConfig?: VpnConfig | null
 }
 

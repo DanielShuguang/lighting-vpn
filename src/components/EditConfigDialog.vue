@@ -81,19 +81,7 @@ import {
   type FormRules
 } from 'naive-ui'
 import { invoke } from '@tauri-apps/api/core'
-
-interface VpnConfig {
-  id: string
-  name: string
-  protocol: string
-  server: string
-  port: number
-  password?: string
-  method?: string
-  remarks?: string
-  created_at: string
-  updated_at: string
-}
+import type { VpnConfig } from '../types/vpn'
 
 const props = defineProps<{
   show: boolean
@@ -219,7 +207,7 @@ const saveConfig = async () => {
     const updatedConfig: VpnConfig = {
       ...props.config,
       name: formData.value.name,
-      protocol: formData.value.protocol,
+      protocol: formData.value.protocol as any,
       server: formData.value.server,
       port: formData.value.port,
       password: formData.value.password || undefined,

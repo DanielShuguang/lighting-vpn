@@ -121,19 +121,7 @@ import { ref, watch } from 'vue'
 import { NModal, NRadioGroup, NRadio, NSpace, NInput, NButton, useMessage } from 'naive-ui'
 import { invoke } from '@tauri-apps/api/core'
 import QrScanner from 'qr-scanner'
-
-interface VpnConfig {
-  id: string
-  name: string
-  protocol: string
-  server: string
-  port: number
-  password?: string
-  method?: string
-  remarks?: string
-  created_at: string
-  updated_at: string
-}
+import type { VpnConfig } from '../types/vpn'
 
 const props = defineProps<{
   show: boolean
